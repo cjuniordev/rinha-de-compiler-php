@@ -1,0 +1,17 @@
+{
+    "name": "carlos/rinha-de-compiler-php",
+    "autoload": {
+        "psr-4": {
+            "RinhaDeCompilerPhp\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Carlos Junior",
+            "email": "carlosrogeriocr02@gmail.com"
+        }
+    ],
+    "require": {
+        "php": "^8.2"
+    }
+}
