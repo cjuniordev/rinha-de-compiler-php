@@ -1,20 +1,23 @@
 <?php
 
 use RinhaDeCompilerPhp\Interpreter;
+use RinhaDeCompilerPhp\Parser;
 
 require __DIR__ . '/../vendor/autoload.php';
 
-$rawFile = file_get_contents(__DIR__ . '/../files/fib.json');
+$filename = $argv[1] ?? null;
 
-$parsedFile = json_decode($rawFile, true);
+if (is_null($filename)) {
+    echo "ERROR: filename is required.\nTry: 'composer rinha [FILENAME]'\n";
+    die();
+}
 
-//$file = new File(
-//    $parsedFile['name'],
-//    $parsedFile['expression'],
-//    Location::getInstanceByArray($parsedFile['location'])
-//);
+$parser = new Parser();
 
-$environment = ['objects' => []];
-
-$result = (new Interpreter())
-    ->interpret($parsedFile['expression'], $environment);
+try {
+    $file = $parser
+        ->parse($filename)
+        ->interpret();
+} catch (Exception $e) {
+    echo $e->getMessage();
+}

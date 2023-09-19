@@ -1,6 +1,6 @@
 <?php
 
-namespace RinhaDeCompilerPhp\Terms\Enums;
+namespace RinhaDeCompilerPhp\Nodes\Enums;
 
 enum BinaryOperator: string
 {

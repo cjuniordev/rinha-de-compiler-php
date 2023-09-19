@@ -1,13 +1,13 @@
 <?php
 
-namespace RinhaDeCompilerPhp\Terms;
+namespace RinhaDeCompilerPhp\Nodes;
 
 class Location
 {
     public function __construct(
-        private int $start,
-        private int $end,
-        private string $filename,
+        public int $start,
+        public int $end,
+        public string $filename,
     ) {}
 
     public static function getInstanceByArray(array $location): Location

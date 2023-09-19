@@ -2,140 +2,206 @@
 
 namespace RinhaDeCompilerPhp;
 
-use RinhaDeCompilerPhp\Terms\Binary;
+use Exception;
+use JetBrains\PhpStorm\NoReturn;
+use RinhaDeCompilerPhp\Nodes\Terms\Term;
+use RinhaDeCompilerPhp\Nodes\Terms\TermBinary;
+use RinhaDeCompilerPhp\Nodes\Terms\TermBool;
+use RinhaDeCompilerPhp\Nodes\Terms\TermCall;
+use RinhaDeCompilerPhp\Nodes\Terms\TermClosure;
+use RinhaDeCompilerPhp\Nodes\Terms\TermFunction;
+use RinhaDeCompilerPhp\Nodes\Terms\TermIf;
+use RinhaDeCompilerPhp\Nodes\Terms\TermInt;
+use RinhaDeCompilerPhp\Nodes\Terms\TermLet;
+use RinhaDeCompilerPhp\Nodes\Terms\TermStr;
+use RinhaDeCompilerPhp\Nodes\Terms\TermVar;
 
 class Interpreter
 {
-    private function handleIf(array $term, array &$environment): array
-    {
-        $condition = $this->interpret($term['condition'], $environment); // TODO: assert bool
-        $branch = $condition['value'] ? $term['then'] : $term['otherwise'];
+    private array $cache = [];
 
-        return $this->interpret($branch, $environment);
+    /**
+     * @throws Exception
+     */
+    private function handleIf(TermIf $term, array &$scope): Term
+    {
+        $condition = $term->condition;
+
+        if (! $condition instanceof TermBool) {
+            $condition = $this->interpret($condition, $scope);
+        }
+
+        $branch = $condition->value ? $term->then : $term->otherwise;
+
+        return $this->interpret($branch, $scope);
     }
 
-    private function handleBinary(array $term, array &$environment): array
+    /**
+     * @throws Exception
+     */
+    private function handleBinary(TermBinary $term, array &$scope): TermInt|TermStr|TermBool
     {
-        $lhs = $this->interpret($term['lhs'], $environment);
-        $rhs = $this->interpret($term['rhs'], $environment);
+        $lhs = $this->interpret($term->lhs, $scope);
+        $rhs = $this->interpret($term->rhs, $scope);
 
-        return (new Binary($term['op'], $lhs, $rhs, null))
+        return (new TermBinary($term->operator, $lhs, $rhs))
             ->interpret();
     }
 
-    private function handleVar(array $term, array &$environment): mixed
+    /**
+     * @throws Exception
+     */
+    private function handleVar(TermVar $term, array &$scope): mixed
     {
-        $value = $environment['objects'][$term['text']] ?? null;
+        $value = $scope[$term->text] ?? null;
 
         if (! $value) {
-            throw new \Exception("Variable '{$term['text']}' is not set");
+            throw new Exception("Variable '{$term->text}' is not set");
         }
 
         return $value;
     }
 
-    private function handleType(string $kind, array $term): array
+    private function handleInt(TermInt $term): TermInt
     {
-        return [
-            'kind' => $kind,
-            'value' => $term['value'],
-        ];
+        return $term;
     }
 
-    private function handleCall(array $term, array &$environment): array
+    private function handleStr(TermStr $term): TermStr
     {
-        $function = $this->interpret($term['callee'], $environment)['value']; // TODO: assert this
+        return $term;
+    }
 
-        $countParameters = count($function['parameters']);
-        $countArguments = count($term['arguments']);
+    private function handleBool(TermBool $term): TermBool
+    {
+        return $term;
+    }
+
+    /**
+     * @throws Exception
+     */
+    private function handleCall(TermCall $term, array &$scope): Term
+    {
+        $closure = $this->interpret($term->callee, $scope);
+
+        if (! $closure instanceof TermClosure) {
+            throw new Exception('Invalid closure call');
+        }
+
+        $countParameters = count($closure->parameters);
+        $countArguments = count($term->arguments);
 
         if ($countParameters !== $countArguments) {
-            throw new \Exception("function expected {$countParameters} but {$countArguments} received.");
+            throw new Exception("The function expected {$countParameters} arguments, but received {$countArguments}.");
         }
 
-        $scopedEnv = [
-            'objects' => [
-                ...$environment['objects'],
-                ...$function['environment']['objects'],
-            ]
+        $scoped = [
+            ...$scope,
+            ...$closure->scope,
         ];
+
+        // TODO: improve this memoize
+        $signature = '';
 
         for ($i = 0; $i < $countParameters; $i++) {
-            $parameter = $function['parameters'][$i];
-            $scopedEnv['objects'][$parameter] = $this->interpret($term['arguments'][$i], $environment);
+            $parameter = $closure->parameters[$i];
+            $scoped[$parameter->text] = $this->interpret($term->arguments[$i], $scope);
+            $signature .= $scoped[$parameter->text]->value ?? '';
         }
 
-        return $this->interpret($function['value'], $scopedEnv);
+        $signature = $term->callee->text . $signature;
+
+        if (isset($this->cache[$signature])) {
+            return $this->cache[$signature];
+        }
+
+        $return = $this->interpret($closure->value, $scoped);
+
+        $this->cache[$signature] = $return;
+
+        return $return;
     }
 
-    private function handleFunction(array $term, array $environment): array
+    private function handleFunction(TermFunction $term, array $scope): TermClosure
     {
-        $parameters = array_map(fn ($parameter) => $parameter['text'], $term['parameters']);
-
-        return [
-            'kind' => 'closure',
-            'value' => [
-                'parameters' => $parameters,
-                'value' => $term['value'],
-                'environment' => $environment,
-            ]
-        ];
+        return new TermClosure($term->parameters, $term->value, $scope);
     }
 
-    private function handleLet(array $term, array &$environment): array
+    /**
+     * @throws Exception
+     */
+    private function handleLet(TermLet $term, array &$scope): Term
     {
-        $scopedEnv = [ ...$environment ];
+        $scoped = [ ...$scope ];
 
-        $value = $this->interpret($term['value'], $environment);
+        $value = $this->interpret($term->value, $scope);
+        $scoped[$term->name->text] = $value;
 
-        $scopedEnv['objects'][$term['name']['text']] = $value;
-
-        return $this->interpret($term['next'], $scopedEnv);
+        return $this->interpret($term->next, $scoped);
     }
 
-    private function handlePrint(array $term, array &$environment): array
+    /**
+     * @throws Exception
+     */
+    private function handlePrint(Term $term, array &$scope): Term
     {
-        $value = $this->interpret($term['value'], $environment);
+        if (
+            (! $term instanceof TermStr) ||
+            (! $term instanceof TermInt) ||
+            (! $term instanceof TermBool) ||
+            (! $term instanceof TermClosure)
+        ) {
+            if (!empty($term->value)) {
+                $term = $this->interpret($term->value, $scope);
+            }
+        }
 
-        $result = match ($value['kind']) {
-            'string' => $value['value'],
-            'number' => (string) $value['value'],
-            'boolean' => $value['value'] ? 'true' : 'false',
-            'closure' => '<#closure>',
+        $result = match ($term->kind) {
+            'Str' => $term->value,
+            'Int' => (string) $term->value,
+            'Bool' => $term->value ? 'true' : 'false',
+            'Closure' => '<#closure>',
+            'Tuple' => '(term, term)',
             default => '',
         };
 
-        echo $result;
+        echo $result . PHP_EOL;
 
-        return $value;
+        return $term;
     }
 
-    private function handleDefault(array $term, array &$environment)
+    #[NoReturn] private function handleDefault(array $term, array &$scope): void
     {
         var_dump([
             'who' => debug_backtrace(!DEBUG_BACKTRACE_PROVIDE_OBJECT|DEBUG_BACKTRACE_IGNORE_ARGS,2)[1]['function'],
             'term' => $term,
-            'env' => $environment,
+            'env' => $scope,
         ]);
 
         die();
-
-        return [];
     }
 
 
-    public function interpret(array $term, array &$environment): array
+    /**
+     * @throws Exception
+     */
+    public function interpret(Term $term, array &$scope): Term
     {
-        return match ($term['kind']) {
-            'If' => $this->handleIf($term, $environment),
-            'Binary' => $this->handleBinary($term, $environment),
-            'Var' => $this->handleVar($term, $environment),
-            'Int' => $this->handleType('number', $term),
-            'Call' => $this->handleCall($term, $environment),
-            'Function' => $this->handleFunction($term, $environment),
-            'Let' => $this->handleLet($term, $environment),
-            'Print' => $this->handlePrint($term, $environment),
-            default => $this->handleDefault($term, $environment),
+        return match ($term->kind) {
+            'If' => $this->handleIf($term, $scope),
+            'Binary' => $this->handleBinary($term, $scope),
+            'Var' => $this->handleVar($term, $scope),
+            'Str' => $this->handleStr($term),
+            'Int' => $this->handleInt($term),
+            'Bool' => $this->handleBool($term),
+            'Call' => $this->handleCall($term, $scope),
+            'Function' => $this->handleFunction($term, $scope),
+            'Let' => $this->handleLet($term, $scope),
+            'Print' => $this->handlePrint($term, $scope),
+            default => $this->handleDefault($term, $scope),
+            // Tuple
+            // First
+            // Second
         };
     }
 }
