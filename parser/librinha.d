@@ -1,0 +1,1 @@
+/home/carlos/www/me/rinha-de-compiler/target/release/librinha.rlib: /home/carlos/www/me/rinha-de-compiler/build.rs /home/carlos/www/me/rinha-de-compiler/src/ast.rs /home/carlos/www/me/rinha-de-compiler/src/lib.rs /home/carlos/www/me/rinha-de-compiler/src/parser.rs /home/carlos/www/me/rinha-de-compiler/target/release/build/rinha-20dce21e6f6abcb7/out/rinha.rs

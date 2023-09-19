@@ -9,11 +9,14 @@ use RinhaDeCompilerPhp\Nodes\Terms\TermBinary;
 use RinhaDeCompilerPhp\Nodes\Terms\TermBool;
 use RinhaDeCompilerPhp\Nodes\Terms\TermCall;
 use RinhaDeCompilerPhp\Nodes\Terms\TermClosure;
+use RinhaDeCompilerPhp\Nodes\Terms\TermFirst;
 use RinhaDeCompilerPhp\Nodes\Terms\TermFunction;
 use RinhaDeCompilerPhp\Nodes\Terms\TermIf;
 use RinhaDeCompilerPhp\Nodes\Terms\TermInt;
 use RinhaDeCompilerPhp\Nodes\Terms\TermLet;
+use RinhaDeCompilerPhp\Nodes\Terms\TermSecond;
 use RinhaDeCompilerPhp\Nodes\Terms\TermStr;
+use RinhaDeCompilerPhp\Nodes\Terms\TermTuple;
 use RinhaDeCompilerPhp\Nodes\Terms\TermVar;
 
 class Interpreter
@@ -149,6 +152,7 @@ class Interpreter
             (! $term instanceof TermStr) ||
             (! $term instanceof TermInt) ||
             (! $term instanceof TermBool) ||
+            (! $term instanceof TermTuple) ||
             (! $term instanceof TermClosure)
         ) {
             if (!empty($term->value)) {
@@ -160,14 +164,66 @@ class Interpreter
             'Str' => $term->value,
             'Int' => (string) $term->value,
             'Bool' => $term->value ? 'true' : 'false',
+            'Tuple' => $this->tupleToString($term, $scope),
             'Closure' => '<#closure>',
-            'Tuple' => '(term, term)',
             default => '',
         };
 
         echo $result . PHP_EOL;
 
         return $term;
+    }
+
+    /**
+     * @throws Exception
+     */
+    private function tupleToString(TermTuple $term, array &$scope): string
+    {
+        $first = $this->interpret($term->first, $scope);
+        $second = $this->interpret($term->second, $scope);
+
+        return "({$first->value}, {$second->value})";
+    }
+
+    /**
+     * @throws Exception
+     */
+    private function handleTuple(TermTuple $term, array &$scope): TermTuple
+    {
+        $first = $this->interpret($term->first, $scope);
+        $second = $this->interpret($term->second, $scope);
+
+        return new TermTuple($first, $second);
+    }
+
+    /**
+     * @throws Exception
+     */
+    private function handleFirst(TermFirst $term, array &$scope): Term
+    {
+        $tuple = $term->value;
+
+        if (! ($term->value instanceof TermTuple)) {
+            throw new Exception('Cannot get first element of non-tuple.');
+        }
+
+        /** @var TermTuple $tuple */
+        return $this->interpret($tuple->first, $scope);
+    }
+
+    /**
+     * @throws Exception
+     */
+    private function handleSecond(TermSecond $term, array &$scope): Term
+    {
+        $tuple = $term->value;
+
+        if (! ($term->value instanceof TermTuple)) {
+            throw new Exception('Cannot get first element of non-tuple.');
+        }
+
+        /** @var TermTuple $tuple */
+        return $this->interpret($tuple->second, $scope);
     }
 
     #[NoReturn] private function handleDefault(array $term, array &$scope): void
@@ -180,7 +236,6 @@ class Interpreter
 
         die();
     }
-
 
     /**
      * @throws Exception
@@ -198,10 +253,10 @@ class Interpreter
             'Function' => $this->handleFunction($term, $scope),
             'Let' => $this->handleLet($term, $scope),
             'Print' => $this->handlePrint($term, $scope),
+            'Tuple' => $this->handleTuple($term, $scope),
+            'First' => $this->handleFirst($term, $scope),
+            'Second' => $this->handleSecond($term, $scope),
             default => $this->handleDefault($term, $scope),
-            // Tuple
-            // First
-            // Second
         };
     }
 }

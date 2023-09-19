@@ -10,12 +10,15 @@ use RinhaDeCompilerPhp\Nodes\Terms\Term;
 use RinhaDeCompilerPhp\Nodes\Terms\TermBinary;
 use RinhaDeCompilerPhp\Nodes\Terms\TermBool;
 use RinhaDeCompilerPhp\Nodes\Terms\TermCall;
+use RinhaDeCompilerPhp\Nodes\Terms\TermFirst;
 use RinhaDeCompilerPhp\Nodes\Terms\TermFunction;
 use RinhaDeCompilerPhp\Nodes\Terms\TermIf;
 use RinhaDeCompilerPhp\Nodes\Terms\TermInt;
 use RinhaDeCompilerPhp\Nodes\Terms\TermLet;
 use RinhaDeCompilerPhp\Nodes\Terms\TermPrint;
+use RinhaDeCompilerPhp\Nodes\Terms\TermSecond;
 use RinhaDeCompilerPhp\Nodes\Terms\TermStr;
+use RinhaDeCompilerPhp\Nodes\Terms\TermTuple;
 use RinhaDeCompilerPhp\Nodes\Terms\TermVar;
 
 class Parser
@@ -31,7 +34,22 @@ class Parser
             throw new Exception("File not found in '/files'\n");
         }
 
-        $rawFile = file_get_contents($fullPath);
+        $explodedPath = explode('.', $path);
+        $extension = end($explodedPath);
+
+        if (! in_array($extension, ['json', 'rinha'])) {
+            throw new Exception('Cannot run this file.');
+        }
+
+        if ($extension === 'rinha') {
+            $output = null;
+            exec("./parser/rinha {$fullPath}", $output);
+            $rawFile = $output[0];
+        }
+        else {
+            $rawFile = file_get_contents($fullPath);
+        }
+
         $json = json_decode($rawFile, true);
         $expression = $json['expression'] ?? null;
 
@@ -108,16 +126,6 @@ class Parser
        return new TermPrint($this->handleTerm($term['value']));
     }
 
-    #[NoReturn] private function handleDefault($term): void
-    {
-        var_dump([
-            'who' => debug_backtrace(!DEBUG_BACKTRACE_PROVIDE_OBJECT|DEBUG_BACKTRACE_IGNORE_ARGS,2)[1]['function'],
-            'term' => $term,
-        ]);
-
-        die();
-    }
-
     private function handleStr(array $term): TermStr
     {
         return new TermStr($term['value']);
@@ -133,6 +141,34 @@ class Parser
         return new TermBool($term['value']);
     }
 
+    private function handleTuple(array $term): TermTuple
+    {
+        $first = $this->handleTerm($term['first']);
+        $second = $this->handleTerm($term['second']);
+
+        return new TermTuple($first, $second);
+    }
+
+    private function handleFirst(array $term): TermFirst
+    {
+        return new TermFirst($this->handleTerm($term['value']));
+    }
+
+    private function handleSecond(array $term): TermSecond
+    {
+        return new TermSecond($this->handleTerm($term['value']));
+    }
+
+    #[NoReturn] private function handleDefault($term): void
+    {
+        var_dump([
+            'who' => debug_backtrace(!DEBUG_BACKTRACE_PROVIDE_OBJECT|DEBUG_BACKTRACE_IGNORE_ARGS,2)[1]['function'],
+            'term' => $term,
+        ]);
+
+        die();
+    }
+
     private function handleTerm($term): Term
     {
         return match ($term['kind']) {
@@ -146,9 +182,9 @@ class Parser
             'Str' => $this->handleStr($term),
             'Int' => $this->handleInt($term),
             'Bool' => $this->handleBool($term),
-            // Tuple
-            // First
-            // Second
+            'Tuple' => $this->handleTuple($term),
+            'First' => $this->handleFirst($term),
+            'Second' => $this->handleSecond($term),
             default => $this->handleDefault($term),
         };
     }
