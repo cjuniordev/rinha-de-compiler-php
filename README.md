@@ -10,6 +10,7 @@
 
 Código com base na rinha de compiladores ([Repositório Oficial](https://github.com/aripiprazole/rinha-de-compiler)).
 Interpretador realizado em PHP apenas para diversão, não foi implementado nenhum tipo de teste e/ou otimização.
+O diretório /parser é o parser realizado pelos idealizadores do projeto, apenas o copiei para facilitar os testes.
 
 ## Para executar
 
@@ -21,5 +22,5 @@ Interpretador realizado em PHP apenas para diversão, não foi implementado nenh
 
 ### Possíveis otimizações
 * Utilização de multithread
-
+* 
 [banner]: ./img/banner.png
