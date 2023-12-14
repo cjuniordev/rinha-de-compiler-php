@@ -2,8 +2,7 @@
     "name": "carlos/rinha-de-compiler-php",
     "description": "A simple interpreter for rinha.",
     "scripts": {
-        "rinha": "php ./src/index.php",
-        "parse": "./parser/rinha"
+        "rinha": "php ./src/index.php"
     },
     "autoload": {
         "psr-4": {

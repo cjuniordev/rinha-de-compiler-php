@@ -37,19 +37,11 @@ class Parser
         $explodedPath = explode('.', $path);
         $extension = end($explodedPath);
 
-        if (! in_array($extension, ['json', 'rinha'])) {
+        if ($extension != 'json') {
             throw new Exception('Cannot run this file.');
         }
 
-        if ($extension === 'rinha') {
-            $output = null;
-            exec("./parser/rinha {$fullPath}", $output);
-            $rawFile = $output[0];
-        }
-        else {
-            $rawFile = file_get_contents($fullPath);
-        }
-
+        $rawFile = file_get_contents($fullPath);
         $json = json_decode($rawFile, true);
         $expression = $json['expression'] ?? null;
 
