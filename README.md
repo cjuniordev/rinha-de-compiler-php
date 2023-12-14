@@ -10,17 +10,16 @@
 
 Código com base na rinha de compiladores ([Repositório Oficial](https://github.com/aripiprazole/rinha-de-compiler)).
 Interpretador realizado em PHP apenas para diversão, não foi implementado nenhum tipo de teste e/ou otimização.
-O diretório /parser é o parser realizado pelos idealizadores do projeto, apenas o copiei para facilitar os testes.
 
 ## Para executar
 
 1. Tenha o `PHP ^8.0` e o composer instalado em sua máquina.
 2. Instale as dependências com `composer install`.
-3. Escreva seus códigos `.rinha` na pasta `/files`.
-4. Rode o interpretador com `composer rinha [nome_arquivo.rinha]`.
+3. Escreva seus códigos `.rinha` e compile para `.json` na pasta `/files`.
+4. Rode o interpretador com `composer rinha [nome_arquivo.json]`.
 5. Pronto.
 
 ### Possíveis otimizações
 * Utilização de multithread
-* 
+  
 [banner]: ./img/banner.png
